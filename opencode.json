@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "takt": {
+        "type": "local",
+        "command": [
+          "takt-mcp"
+        ],
+        "cwd": "."
+      }
+    }
+  }
+}

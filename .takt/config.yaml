@@ -1,0 +1,3 @@
+base_branch: master      # worktree クローン作成のベースブランチ
+auto_pr: true            # worktree 実行後に PR を自動作成
+draft_pr: false          # 自動作成する PR を draft として作成
