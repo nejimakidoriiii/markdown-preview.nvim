@@ -1,0 +1,126 @@
+# 分類表 — Issue #1 プレビュー内の Markdown リンクを独立したウィンドウで開く
+# 出典: requirements.md（Issue URL: https://github.com/nejimakidoriiii/markdown-preview.nvim/issues/1）
+# 生成はこの表を唯一の入力とする（requirements.md から直接生成しない）。
+# 判定基準:
+#   gherkin: 利用者・外部システムが入力を与え、応答を受け取るか
+#   quint:   システム内部に変化する状態と、常に守るべき条件があるか
+#   alloy:   エンティティ間の関係で、存在してよい組み合わせを制限するか
+
+REQ-001:
+  text: 対象はローカル Markdown ファイル（拡張子 .md/.markdown、大文字小文字を区別しない）へのリンク。相対パス・絶対パスの両方。
+  gherkin: true   # 拡張子・大小の組み合わせを Scenario Outline の Examples で観察する
+  quint: false    # 拡張子判定は文字列処理であり状態遷移ではない。対象判定は clickLink のガード引数 isMdLink に記号化して表現
+  alloy: true     # 対象/対象外のリンク先型分類（MdTarget と非 Md の LinkTarget 下位型）として静的構造を表現
+REQ-002:
+  text: 対象リンクをクリックしたとき、リンク先を独立したプレビューウィンドウで開く。
+  gherkin: true   # クリック（入力）→ 独立ウィンドウ表示（応答）
+  quint: true     # action clickLink（windowCount の増加と取得源設定の遷移）
+  alloy: false    # 「開く」は遷移であり静的構造の制約ではない（構造面は REQ-003/REQ-005 が担う）
+REQ-003:
+  text: 対象リンクをクリックするたび、毎回新規のプレビューウィンドウを開く。
+  gherkin: true   # 再クリックでウィンドウが 2 つ観察できる
+  quint: true     # clickLink は windowCount を +1 する（既存ウィンドウを再利用しない）
+  alloy: true     # 同一ファイルに複数の LinkWindow が共存できる構造（run で SAT を確認）
+REQ-004:
+  text: リンククリックによる開封は g:mkdp_combine_preview の影響を受けず常に独立した新規ウィンドウ。combine は :MarkdownPreview の明示開始にのみ適用。
+  gherkin: true   # combine=1 でもリンククリックで新規ウィンドウが開くことが観察できる
+  quint: true     # clickLink は combine を参照しない（combine を参照する openByCommandReplace との対比で表現）
+  alloy: false    # 設定値と遷移の関係であり構造制約ではない
+REQ-005:
+  text: 外部 URL・アンカーのみ・non-md ローカルファイルへのリンクは従来どおりの挙動で、独立ウィンドウでは開かない。
+  gherkin: true   # 種別ごとの従来挙動（外部遷移・ページ内スクロール・404）が観察できる
+  quint: true     # clickLink のガード isMdLink と action clickNonTargetLink（状態不変）
+  alloy: true     # fact REQ005_OnlyMdTargetsOpenWindows（対象外リンク由来の LinkWindow は存在しない）
+REQ-006:
+  text: 相対パスのリンク先はリンク元 Markdown ファイルのディレクトリを基準に解決する。
+  gherkin: true   # ../up.md の解決結果が正しいファイルの表示として観察できる
+  quint: false    # パス文字列の解決規則であり状態遷移がない
+  alloy: false    # パス構文の規則でありエンティティ関係の制約ではない
+REQ-007:
+  text: 絶対パスのリンク先はパスをそのまま用いて解決する。
+  gherkin: true   # 絶対パス指定で正しいファイルが開くことが観察できる
+  quint: false    # REQ-006 と同様、パス解決規則であり状態遷移がない
+  alloy: false    # 同上、構造制約ではない
+REQ-008:
+  text: リンク先パスの解決にワーキングディレクトリ等の範囲制限を設けない。
+  gherkin: true   # ワーキングディレクトリ外のファイルが開けることが観察できる
+  quint: false    # 制限の不在は遷移ではなく静的な性質
+  alloy: true     # workingDirFiles 外のファイルの LinkWindow が存在できる（run で SAT を確認）
+REQ-009:
+  text: URL エンコードされたリンク先パス・スペース含みパスは URL デコードして解決する。
+  gherkin: true   # my%20file.md のリンクが my file.md の内容として開くことが観察できる
+  quint: false    # 文字列の符号化処理であり状態遷移がない
+  alloy: false    # 構造制約ではない
+REQ-010:
+  text: リンク先ファイルがバッファリストに存在するとき、未保存変更を含むバッファ内容を表示する。
+  gherkin: true   # 未保存変更を含むバッファ内容の表示が観察できる
+  quint: true     # clickLink の取得源計算（sourceAt・versionAt）と inv_sourceSound
+  alloy: true     # fact REQ010_BufferSourceNeedsBuffer（バッファ取得源のファイルには必ずバッファが存在）
+REQ-011:
+  text: バッファ判定はバッファリスト存在のみで、ウィンドウ表示中かを問わない（隠れバッファ含む）。
+  gherkin: true   # 隠れバッファの内容が表示されることが観察できる
+  quint: false    # モデルの buffers に表示状態の区別が存在しないこと自体が要件の表現（表示状態を表す変数を持たない）
+  alloy: false    # 同様に Buffer に表示状態の区別を持たせないことが表現
+REQ-012:
+  text: リンク先がバッファリストに存在しないとき、nvim にバッファを作らずディスク内容を表示する。
+  gherkin: true   # ディスク内容の表示と、バッファリスト・ウィンドウ構成の不変が観察できる
+  quint: true     # clickLink の取得源計算と frame 条件（buffers' = buffers）
+  alloy: true     # バッファが存在しないファイルの FromDisk ウィンドウが存在できる（run で SAT を確認）
+REQ-013:
+  text: バッファ存在するリンク先のプレビューは既存 autocmd 経由のライブ同期で自動更新される。
+  gherkin: true   # 編集内容が反映されることが観察できる
+  quint: true     # action editBuffer と inv_liveSync
+  alloy: false    # 更新は遷移であり構造制約ではない
+REQ-014:
+  text: バッファが存在しないリンク先のプレビューは開いた時点のスナップショットで、ブラウザ再読み込みで最新化される。
+  gherkin: true   # 自動更新されないこと・再読み込みで最新化することが観察できる
+  quint: true     # action editDisk（windowVersion 不変）と reloadWindow、inv_snapshotSound
+  alloy: false    # 内容の鮮度は遷移の性質であり構造制約ではない
+REQ-015:
+  text: 未開リンク先を開いた後に nvim で開けば、次の更新機会からバッファ優先に切り替わる。
+  gherkin: true   # 表示のバッファへの切替が観察できる
+  quint: true     # action openInNvim と refreshSource / reloadWindow による取得源の再評価
+  alloy: false    # 切替は遷移（静的には切替前の一時状態を許すため iff 制約を置かない）
+REQ-016:
+  text: 独立ウィンドウは既存プレビューと同一の設定・見た目でレンダリングする。
+  gherkin: true   # テーマ・スタイルの同一性が観察できる
+  quint: false    # 見た目の同一性は状態遷移ではない
+  alloy: true     # 全 PreviewWindow の renderer が単一 StandardRenderer（fact と assert）
+REQ-017:
+  text: アンカー付きリンクは該当見出しにスクロールした状態で開く。
+  gherkin: true   # スクロール位置が観察できる
+  quint: false    # 表示位置は UI の振る舞いでありモデル化する状態変数がない
+  alloy: false    # 構造制約ではない
+REQ-018:
+  text: リンク先が不在・読み込み失敗のとき、プレビュー画面上にエラーを表示しプレビューウィンドウを開かない。
+  gherkin: true   # エラー表示とウィンドウ非開が観察できる
+  quint: true     # clickLink のガード readable（ガード不成立＝ウィンドウを作らない）
+  alloy: true     # MissingTarget 由来の LinkWindow が存在しない構造（assert）
+REQ-019:
+  text: 独立ウィンドウ内の対象リンクも再帰的に独立ウィンドウで開ける。基準ディレクトリはそのリンク元のディレクトリ。
+  gherkin: true   # 二段階のクリックで追加ウィンドウが観察できる
+  quint: true     # clickLink はリンク元の開封経路を区別しない（同一 action が再適用できる）
+  alloy: true     # 表示中ファイル内のリンクからさらに LinkWindow が存在できる構造（run で SAT を確認）
+REQ-020:
+  text: :MarkdownPreviewStop 等の終了時に独立ウィンドウも既存 close 配信に従い閉じる。
+  gherkin: true   # 停止により全ウィンドウが閉じることが観察できる
+  quint: true     # action stopPreview と inv_stoppedNoWindows
+  alloy: true     # 全 PreviewWindow が単一 PreviewServer の管理下にある構造（fact と assert）
+REQ-021:
+  text: 既存プレビュー（元ファイル）の表示・更新・終了の挙動は変えない。
+  gherkin: true   # リンク開封後も元プレビューの自動更新が観察できる
+  quint: true     # clickLink の frame 条件（他ウィンドウの状態を変えない）と inv_liveSync は開封経路によらず成立
+  alloy: false    # 「既存挙動と同じ」は等価性の主張であり静的構造では表現しない
+REQ-022:
+  text: Neovim に加え Vim（vim-node-rpc）でも動作する。
+  gherkin: true   # エディタ種別を Examples にした主要経路のシナリオ
+  quint: false    # エディタ種別はモデル化した状態変数ではない
+  alloy: false    # 構造制約ではない
+REQ-023:
+  text: 確認用リンク用例（相対・絶対・アンカー付き・不在・対象外）を test/test.md に追記する。
+  gherkin: false  # 手動確認用の作業成果物であり、システムへの入力と応答の振る舞いではない
+  quint: false    # 状態遷移を持つシステム要件ではない
+  alloy: false    # エンティティ関係の制約ではない
+  # 3 形式すべて false について: 利用者が設計判断 11 として「検証は手動確認のみ」と決定済みであり、
+  # 本 REQ は実装タスクの成果物（test/test.md へのドキュメント追記）であるため形式仕様の生成対象外とする。
+  # 通常はユーザーへの確認が必要だが、この除外は利用者の明示的な決定に基づく（requirements.md 出典参照）。
