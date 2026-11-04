@@ -210,3 +210,94 @@ erDiagram
     ORDER ||--|{ LINE-ITEM : contains
     CUSTOMER }|..|{ DELIVERY-ADDRESS : uses
 ```
+
+# Markdown リンク確認用（Issue #1）
+
+この節は Issue #1「プレビュー内の Markdown リンクを独立したウィンドウで開く」の手動確認用のリンク用例である（REQ-023）。
+確認手順は `test/manual-verification.md` を参照する。
+リンク先ファイルの見出しにファイル名を記してあり、表示された内容からどのファイルが読まれたかを判別できる。
+`up.md` はリポジトリ直下、`/tmp` で始まる絶対パスの実体は手順書に従って作成する。
+
+## 対象リンク（拡張子と大小文字）
+
+- [a](sub.md)
+- [b](sub.markdown)
+- [MD](sub.MD)
+- [Markdown](sub.Markdown)
+- [c](UPPER.MD)
+
+> [d](sub.md)
+
+## パス解決と取得元
+
+- [相対 ../up.md](../up.md)
+- [絶対 /tmp/mkdp-absolute-target.md](/tmp/mkdp-absolute-target.md)
+- [空白 my%20file.md](my%20file.md)
+- [パーセント my%2520file.md](my%2520file.md)
+- [disk](disk.md)
+- [アンカー付き sub.md#section](sub.md#section)
+- [日本語](sub.md#%E6%97%A5%E6%9C%AC%E8%AA%9E)
+- [日本語](sub.md#section)
+- [日本語!](sub.md#%E6%97%A5%E6%9C%AC%E8%AA%9E!)
+- [日本語!](sub.md#%E6%97%A5%E6%9C%AC%E8%AA%9E)
+- [絶対Win](C:/docs/target.md)
+- [絶対WinTXT](C:/docs/target.txt)
+- [再帰 inner](inner/inner.md)
+
+## 対象外リンク
+
+- [外部](https://example.com/)
+- [見出し](#section)
+- [データ](./data.txt)
+- [sub.md](#section)
+- [sub.md](./data.txt)
+
+## 不在と読込失敗
+
+- [不在](missing.md)
+- [読込失敗](/tmp/mkdp-unreadable.md)
+- [読込失敗 dir](/tmp/mkdp-dir-target.md)
+
+## Section
+
+この見出しは同一ページ内移動（[見出し](#section)・[sub.md](#section)）の確認用である。
+
+## HTMLアンカー（本文由来のフラグメント）
+
+HTML で書かれたアンカーの href はレンダラーによる符号化を受けない生の値である。
+フラグメントが見出し指定のデータとして扱われ、起動コマンドの命令として解釈されないことを確認する。
+
+<p><a href="sub.md#section">html-section</a></p>
+
+<p><a href="sub.md#section|mkdp-fragment">html-pipe</a></p>
+
+## コード文脈（リンクとして対象にしない）
+
+インラインコード: `[a](sub.md)`
+
+    [a](sub.md)
+
+```
+[a](sub.md)
+```
+
+````
+[a](sub.md)
+````
+
+~~~
+[a](sub.md)
+~~~
+
+> ```
+> [a](sub.md)
+> ```
+
+<!-- [a](sub.md) -->
+
+\[a](sub.md)
+
+未閉鎖フェンス（この用例は必ずファイル末尾に置く。以降はフェンスが閉じない）:
+
+```
+[a](sub.md)

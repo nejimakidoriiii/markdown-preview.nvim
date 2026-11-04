@@ -1,6 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const logger = require('./lib/util/logger')('app/routes')
+const preview = require('./lib/preview')
 
 const routes = []
 
@@ -9,8 +10,14 @@ const use = function (route) {
 }
 
 // /page/:number
+// /file/:path (independent previews opened from links, only when the single
+// path parameter classifies as a local markdown target, non-md stays a 404)
 use((req, res, next) => {
   if (/\/page\/\d+/.test(req.asPath)) {
+    return fs.createReadStream('./out/index.html').pipe(res)
+  }
+  const fileMatch = req.asPath.match(/^\/file\/([^/]+)$/)
+  if (fileMatch && preview.parseLocalMarkdownLink(fileMatch[1])) {
     return fs.createReadStream('./out/index.html').pipe(res)
   }
   next()
@@ -62,16 +69,26 @@ use(async (req, res, next) => {
   const reg = /^\/_local_image_/
   if (reg.test(req.asPath) && req.asPath !== '') {
     const plugin = req.plugin
-    const buffers = await plugin.nvim.buffers
-    const buffer = buffers.find(b => b.id === Number(req.bufnr))
-    if (buffer) {
-      let fileDir = ''
-      if (req.custImgPath !== '' ){
-        fileDir = req.custImgPath
+    let fileDir = ''
+    if (req.custImgPath !== '' ){
+      fileDir = req.custImgPath
+    } else {
+      // link pages (/file/...) have no buffer, their base directory comes
+      // from the file path in the referer
+      const referer = (req.headers.referer || '').replace(/[?#].*$/, '')
+      const fileIndex = referer.indexOf('/file/')
+      if (fileIndex !== -1) {
+        fileDir = path.dirname(decodeURIComponent(referer.slice(fileIndex + '/file/'.length)))
       } else {
-        fileDir = await plugin.nvim.call('expand', `#${req.bufnr}:p:h`)
+        const buffers = await plugin.nvim.buffers
+        const buffer = buffers.find(b => b.id === Number(req.bufnr))
+        if (buffer) {
+          fileDir = await plugin.nvim.call('expand', `#${req.bufnr}:p:h`)
+        }
       }
+    }
 
+    if (fileDir !== '') {
       logger.info('fileDir', fileDir)
 
       const  mingw_home=process.env.MINGW_HOME;
@@ -82,13 +99,13 @@ use(async (req, res, next) => {
           const cygpath = 'cygpath.exe'
           const cmd=cygpath+' -w'+' -a '+fileDir ;
           logger.info('cmd',cmd)
-       
+
           const { execSync } = require('node:child_process');
           const result = execSync(cmd);
           fileDir=result.toString('utf8').replace('\n','');
 
           logger.info('New fileDir',fileDir);
-        }  
+        }
       }
 
       let imgPath = decodeURIComponent(decodeURIComponent(req.asPath.replace(reg, '')))
@@ -107,7 +124,7 @@ use(async (req, res, next) => {
         }
       }
       logger.info('imgPath', imgPath);
-      
+
       if (fs.existsSync(imgPath) && !fs.statSync(imgPath).isDirectory()) {
         if (imgPath.endsWith('svg')) {
           res.setHeader('content-type', 'image/svg+xml')
