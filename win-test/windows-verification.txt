@@ -1,0 +1,24 @@
+検証日時: 2026-11-04
+OS: Microsoft Windows 11 Pro 10.0.26300 64ビット
+使用配布版: Node.js v24.22.2 / Neovim v0.11.5
+ブラウザーと版:
+  Microsoft Edge バージョン 156.0.4314.58 (公式ビルド) (64 ビット)
+
+対象ZIP: mkdp-windows-check-fixed.zip
+SHA-256:
+46B826A5088BEEDA58A7769EC3EF3EC178817EA078DDEAADFBCDF8186906D9B4
+
+元ページからの絶対パス・slash: PASS
+元ページからの絶対パス・backslash: PASS
+独立ページからの絶対パス・slash: PASS
+独立ページからの絶対パス・backslash: PASS
+日本語見出しへの移動: PASS
+日本語!見出しへの移動: PASS
+Section|mkdp-fragment見出しへの移動: PASS
+
+検出用コマンドの事前動作確認:
+【executed.txtが作成されTrueになったことを確認済み】
+
+プラグイン操作後のexecuted.txt存在確認: False
+
+WSL: 未実施

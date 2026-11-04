@@ -24,8 +24,34 @@ import scrollToLine from './scroll'
 import { meta } from './meta';
 import markdownImSize from './markdown-it-imsize'
 import { escape} from './utils';
+import { classifyLocalLink } from '../lib/preview/link'
 
 const anchorSymbol = '<svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg>'
+
+// heading ids are rendered percent-encoded (markdown-it-anchor slugify) while
+// raw html content may keep literal ids, so the encoded fragment is searched
+// first and the decoded form after. the launcher additionally encodes
+// !'()* for the browser open command, so a third candidate re-encodes the
+// decoded value with the plain encoder to match the rendered heading id.
+function findAnchorElement(fragment) {
+  const exact = document.getElementById(fragment)
+  if (exact) {
+    return exact
+  }
+  let decoded
+  try {
+    decoded = decodeURIComponent(fragment)
+  } catch (e) {
+    return null
+  }
+  if (decoded !== fragment) {
+    const decodedElement = document.getElementById(decoded)
+    if (decodedElement) {
+      return decodedElement
+    }
+  }
+  return document.getElementById(encodeURIComponent(decoded))
+}
 
 const DEFAULT_OPTIONS = {
   mkit: {
@@ -81,6 +107,8 @@ export default class PreviewPage extends React.Component {
     this.preContent = ''
     this.timer = undefined
     this.bufnr = -1;
+    this.file = undefined
+    this.pendingAnchor = undefined
 
     this.state = {
       name: '',
@@ -90,11 +118,14 @@ export default class PreviewPage extends React.Component {
       theme: '',
       themeModeIsVisible: false,
       contentEditable: false,
-      disableFilename: 1
+      disableFilename: 1,
+      linkError: ''
     }
     this.showThemeButton = this.showThemeButton.bind(this)
     this.hideThemeButton = this.hideThemeButton.bind(this)
     this.handleThemeChange = this.handleThemeChange.bind(this)
+    this.onClickContent = this.onClickContent.bind(this)
+    this.onLinkError = this.onLinkError.bind(this)
   }
 
   handleThemeChange() {
@@ -109,6 +140,22 @@ export default class PreviewPage extends React.Component {
 
   hideThemeButton() {
     this.setState({ themeModeIsVisible: false })
+  }
+
+  bindSocket(socket) {
+    socket.on('connect', this.onConnect.bind(this))
+
+    socket.on('disconnect', this.onDisconnect.bind(this))
+
+    socket.on('close', this.onClose.bind(this))
+
+    socket.on('refresh_content', this.onRefreshContent.bind(this))
+
+    socket.on('close_page', this.onClose.bind(this))
+
+    socket.on('change_bufnr', this.onChangeBufnr.bind(this))
+
+    socket.on('link_error', this.onLinkError.bind(this))
   }
 
   startSocket(bufnr) {
@@ -130,17 +177,31 @@ export default class PreviewPage extends React.Component {
 
     window.socket = socket
 
-    socket.on('connect', this.onConnect.bind(this))
+    this.bindSocket(socket)
 
-    socket.on('disconnect', this.onDisconnect.bind(this))
+    if (tmpSocket) {
+      tmpSocket.close()
+    }
+  }
 
-    socket.on('close', this.onClose.bind(this))
+  startFileSocket(file) {
+    if (this.file === file) {
+      return;
+    }
+    this.file = file;
 
-    socket.on('refresh_content', this.onRefreshContent.bind(this))
+    // Close the previous socket
+    const tmpSocket = window.socket
 
-    socket.on('close_page', this.onClose.bind(this))
+    const socket = io({
+      query: {
+        file: encodeURIComponent(file)
+      }
+    })
 
-    socket.on('change_bufnr', this.onChangeBufnr.bind(this))
+    window.socket = socket
+
+    this.bindSocket(socket)
 
     if (tmpSocket) {
       tmpSocket.close()
@@ -148,7 +209,17 @@ export default class PreviewPage extends React.Component {
   }
 
   componentDidMount() {
-    this.startSocket(parseFloat(window.location.pathname.split('/')[2]))
+    const [, route, param] = window.location.pathname.split('/')
+    if (route === 'file' && param) {
+      if (window.location.hash) {
+        // heading ids are rendered percent-encoded, so the raw fragment is
+        // kept as the id representation to search for
+        this.pendingAnchor = window.location.hash.replace(/^#/, '')
+      }
+      this.startFileSocket(decodeURIComponent(param))
+    } else {
+      this.startSocket(parseFloat(param))
+    }
   }
 
   onConnect() {
@@ -166,6 +237,33 @@ export default class PreviewPage extends React.Component {
 
   onChangeBufnr(bufnr) {
     this.startSocket(bufnr)
+  }
+
+  onLinkError({ message } = {}) {
+    this.setState({
+      linkError:
+        typeof message === 'string' && message !== ''
+          ? message
+          : 'cannot open the link target'
+    })
+  }
+
+  onClickContent(e) {
+    const target = e.target
+    if (!target || typeof target.closest !== 'function') return
+    const anchor = target.closest('a')
+    if (!anchor) return
+    const href = anchor.getAttribute('href') || ''
+    const link = classifyLocalLink(href)
+    if (!link) return
+    e.preventDefault()
+    if (link.kind === 'windows-non-markdown') {
+      window.location.assign(`/file/${encodeURIComponent(link.path)}`)
+      return
+    }
+    if (window.socket) {
+      window.socket.emit('open_link', { href })
+    }
   }
 
   onRefreshContent({
@@ -255,7 +353,22 @@ export default class PreviewPage extends React.Component {
     const refreshContent = this.preContent !== newContent
     this.preContent = newContent
 
+    if (this.state.linkError !== '') {
+      this.setState({ linkError: '' })
+    }
+
     const refreshScroll = () => {
+      if (this.pendingAnchor !== undefined) {
+        // first render of a link page scrolls to the requested heading
+        // instead of the sync scroll, later updates behave as before
+        const anchor = this.pendingAnchor
+        this.pendingAnchor = undefined
+        const anchorEle = anchor !== '' ? findAnchorElement(anchor) : null
+        if (anchorEle) {
+          anchorEle.scrollIntoView()
+        }
+        return
+      }
       if (isActive && !options.disable_sync_scroll) {
         scrollToLine[options.sync_scroll_type || 'middle']({
           cursor: cursor[1],
@@ -325,6 +438,7 @@ export default class PreviewPage extends React.Component {
       themeModeIsVisible,
       contentEditable,
       disableFilename,
+      linkError,
     } = this.state
 
     return (
@@ -387,8 +501,18 @@ export default class PreviewPage extends React.Component {
                )}
               </header>
             }
+            {linkError !== '' && (
+              <div
+                id="link-error"
+                role="alert"
+                style={{ color: '#cb2431', padding: '8px 16px' }}
+              >
+                {linkError}
+              </div>
+            )}
             <section
               className="markdown-body"
+              onClick={this.onClickContent}
               dangerouslySetInnerHTML={{
                 __html: content
               }}

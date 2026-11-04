@@ -10,7 +10,11 @@ function! s:on_stderr(chan_id, msgs, ...) abort
   call mkdp#util#echo_messages('Error', a:msgs)
 endfunction
 function! s:on_exit(chan_id, code, ...) abort
-  let s:mkdp_channel_id = s:is_vim ? v:null : -1
+  " the exit of an already replaced server must not clear the new channel id
+  " (stop immediately followed by start)
+  if a:chan_id ==# s:mkdp_channel_id
+    let s:mkdp_channel_id = s:is_vim ? v:null : -1
+  endif
 endfunction
 
 function! s:start_vim_server(cmd) abort
@@ -63,6 +67,7 @@ function! mkdp#rpc#start_server() abort
 endfunction
 
 function! mkdp#rpc#stop_server() abort
+  call mkdp#autocmd#stop_link_preview()
   if s:is_vim
     if s:mkdp_channel_id !=# v:null
       let l:status = job_status(s:mkdp_channel_id)
@@ -97,14 +102,15 @@ function! mkdp#rpc#get_server_status() abort
   return 1
 endfunction
 
-function! mkdp#rpc#preview_refresh() abort
+function! mkdp#rpc#preview_refresh(...) abort
+  let l:bufnr = get(a:, 1, bufnr('%'))
   if s:is_vim
     if s:mkdp_channel_id !=# v:null
-      call mkdp#rpc#notify(s:mkdp_channel_id, 'refresh_content', { 'bufnr': bufnr('%') })
+      call mkdp#rpc#notify(s:mkdp_channel_id, 'refresh_content', { 'bufnr': l:bufnr })
     endif
   else
     if s:mkdp_channel_id !=# -1
-      call rpcnotify(s:mkdp_channel_id, 'refresh_content', { 'bufnr': bufnr('%') })
+      call rpcnotify(s:mkdp_channel_id, 'refresh_content', { 'bufnr': l:bufnr })
     endif
   endif
 endfunction

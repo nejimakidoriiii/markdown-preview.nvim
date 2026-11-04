@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const tslib_1 = require("tslib");
 const neovim_1 = require("@chemzqm/neovim");
+const preview_1 = require("../preview");
 const logger = require('../util/logger')('attach'); // tslint:disable-line
 let app;
 function default_1(options) {
@@ -12,29 +13,9 @@ function default_1(options) {
         const buffers = yield nvim.buffers;
         const buffer = buffers.find(b => b.id === bufnr);
         if (method === 'refresh_content') {
-            const winline = yield nvim.call('winline');
-            const currentWindow = yield nvim.window;
-            const winheight = yield nvim.call('winheight', currentWindow.id);
-            const cursor = yield nvim.call('getpos', '.');
-            const renderOpts = yield nvim.getVar('mkdp_preview_options');
-            const pageTitle = yield nvim.getVar('mkdp_page_title');
-            const theme = yield nvim.getVar('mkdp_theme');
-            const name = yield buffer.name;
-            const content = yield buffer.getLines();
-            const currentBuffer = yield nvim.buffer;
             app.refreshPage({
                 bufnr,
-                data: {
-                    options: renderOpts,
-                    isActive: currentBuffer.id === buffer.id,
-                    winline,
-                    winheight,
-                    cursor,
-                    pageTitle,
-                    theme,
-                    name,
-                    content
-                }
+                data: yield (0, preview_1.buildBufferData)(nvim, buffer)
             });
         }
         else if (method === 'close_page') {
