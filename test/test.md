@@ -210,3 +210,79 @@ erDiagram
     ORDER ||--|{ LINE-ITEM : contains
     CUSTOMER }|..|{ DELIVERY-ADDRESS : uses
 ```
+
+## ローカル Markdown リンクの確認
+
+準備と期待結果は [手動確認手順](link-preview/manual.md) を参照する。
+絶対パスのリンクは、手順に従って所有する一時ディレクトリ内のコピーで置き換える。
+
+- [小文字 md](link-preview/sub.md)
+- [小文字 markdown](link-preview/sub.markdown)
+- [大文字 MD](link-preview/sub.MD)
+- [大小混在 Markdown](link-preview/sub.Markdown)
+- [未開ファイル・再クリック](link-preview/disk.md)
+- [バッファ優先](link-preview/buffer.md)
+- [エンコードされたスペース](link-preview/my%20file.md)
+- [スペースを含むパス](<link-preview/my file.md>)
+- [ファイル付きアンカー](link-preview/sub.md#section)
+- [再帰リンクの入口](link-preview/sub/sub.md)
+- [絶対パス・cwd 外](/tmp/opencode/REPLACE_LINK_PREVIEW_ROOT/outside/target.md)
+- [不在ファイル](link-preview/missing.md)
+- [読み取り失敗](/tmp/opencode/REPLACE_LINK_PREVIEW_ROOT/outside/unreadable.md)
+- [ローカル非 Markdown](link-preview/data.txt)
+- [数字始まりの非 Markdown](123.txt)
+- <a href="1.txt">数字だけの非 Markdown</a>
+- [外部 HTTPS](https://github.com/nejimakidoriiii/markdown-preview.nvim/issues/1)
+- [外部 HTTP](http://www.google.com)
+- [同一ページのアンカー](#section)
+
+<p>
+<a href="link-preview/sub.md#section">HTML・通常アンカー</a><br>
+<a href="link-preview/sub.md#sec%74ion">HTML・エンコード済み通常アンカー</a><br>
+<a href="link-preview/sub.md#section|name">HTML・縦線アンカー</a><br>
+<a href="link-preview/sub.md#section%7Cname">HTML・エンコード済み縦線アンカー</a><br>
+<a href="link-preview/sub.md#section%257Cname">HTML・文字列パーセントのアンカー</a><br>
+<a href="link-preview/sub.md#section!'()*">HTML・追加エスケープ文字のアンカー</a><br>
+<a href="link-preview/sub.md#%">HTML・不正なアンカー</a><br>
+<a href="link-preview/missing.md#section">HTML・不在ファイルのアンカー</a>
+</p>
+
+![元画面のローカル画像](link-preview/marker.svg)
+
+改行設定の比較用一行目
+改行設定の比較用二行目
+
+> [引用内の対象リンク](link-preview/sub.MD)
+
+\[エスケープされた表記](link-preview/sub.MD)
+
+`[対象](link-preview/sub.MD)`
+
+```text
+[対象](link-preview/sub.MD)
+```
+
+~~~text
+[対象](link-preview/sub.MD)
+~~~
+
+    [対象](link-preview/sub.MD)
+
+````text
+```text
+[対象](link-preview/sub.MD)
+```
+````
+
+<div style="height: 200vh"></div>
+
+## section
+
+元画面のアンカー到達位置。独立画面を作らず、この見出しまで移動する。
+
+### 閉じ忘れたフェンス内の表記
+
+以下のフェンスは意図的に閉じない。この用例はファイル末尾に置く。
+
+```text
+[対象](link-preview/sub.MD)

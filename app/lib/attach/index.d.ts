@@ -10,6 +10,7 @@ interface IApp {
     closeAllPages: (() => void);
     openBrowser: ((params: {
         bufnr: number | string;
+        automatic: boolean;
     }) => void);
 }
 interface IPlugin {

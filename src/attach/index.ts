@@ -1,4 +1,5 @@
 import { attach, Attach, NeovimClient } from '@chemzqm/neovim'
+import { buildPreviewData } from './preview'
 
 const logger = require('../util/logger')('attach') // tslint:disable-line
 
@@ -18,6 +19,7 @@ interface IApp {
   openBrowser: ((
     params: {
       bufnr: number | string
+      automatic: boolean
     }
   ) => void)
 }
@@ -38,29 +40,11 @@ export default function(options: Attach): IPlugin {
     const buffers = await nvim.buffers
     const buffer = buffers.find(b => b.id === bufnr)
     if (method === 'refresh_content') {
-      const winline = await nvim.call('winline')
-      const currentWindow = await nvim.window
-      const winheight = await nvim.call('winheight', currentWindow.id)
-      const cursor = await nvim.call('getpos', '.')
-      const renderOpts = await nvim.getVar('mkdp_preview_options')
-      const pageTitle = await nvim.getVar('mkdp_page_title')
-      const theme = await nvim.getVar('mkdp_theme')
-      const name = await buffer.name
+      const name = (await nvim.call('expand', [`#${bufnr}:p`])) as string
       const content = await buffer.getLines()
-      const currentBuffer = await nvim.buffer
       app.refreshPage({
         bufnr,
-        data: {
-          options: renderOpts,
-          isActive: currentBuffer.id === buffer.id,
-          winline,
-          winheight,
-          cursor,
-          pageTitle,
-          theme,
-          name,
-          content
-        }
+        data: await buildPreviewData(nvim, name, content, bufnr),
       })
     } else if (method === 'close_page') {
       app.closePage({
@@ -68,7 +52,8 @@ export default function(options: Attach): IPlugin {
       })
     } else if (method === 'open_browser') {
       app.openBrowser({
-        bufnr
+        bufnr,
+        automatic: Boolean(opts.automatic),
       })
     }
   })

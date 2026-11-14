@@ -112,6 +112,7 @@ Gherkin はステップ定義（実装）が存在しないため実行検証の
 - バッファ内容は `buffer.getLines()` で取得（未保存反映。`app/server.js:65-76`、`src/attach/index.ts:38-49`）。ディスクから Markdown を読む経路・未開ファイルのバッファ取得は存在しない。
 - socket.io はサーバ→ブラウザ単方向（`refresh_content`/`close_page`/`change_bufnr`。`app/server.js:78-146`）。ブラウザ→サーバの emit は 0 件。nvim→サーバ RPC は `refresh_content`/`close_page`/`open_browser`（notification）と `close_all_pages`（request）の 4 種（`autoload/mkdp/rpc.vim`、`src/attach/index.ts:35-81`）。
 - `g:mkdp_combine_preview=1` なら `:MarkdownPreview` の明示開始時に既存ウィンドウを `change_bufnr` で差し替える（`app/server.js:139-149`）。これは REQ-004 の「combine は明示開始にのみ適用」の基線であり、Quint モデルの `openByCommandReplace` が対応する。
+  - 上の文は仕様作成時の観察・解釈として保持する。質問 `a4f51a1f-ddd7-42ac-95d4-1e94779574e8` への `2026-11-14T21:44:19.388Z` の回答で「明示開始にのみ」の適用条件が訂正された。現行 REQ-004 は combine=1、combine_preview_auto_refresh=1、auto_start=0 の通常画面の既存自動切り替えを認め、独立画面だけを自動切り替えから除外する。独立画面自身の更新と明示開始の combine は保持する。上の記載を通常画面の自動切り替え禁止の根拠にはしない。分類表の形式化対象は維持し、Quint・Alloy の状態・性質は変更していない。モデルの過去結果はこの自動切り替えの証明ではなく、承認後の実機結果は `implementation.md` の追記を参照する。
 - `refresh_content` のトリガは buffer-local autocmd（`g:mkdp_refresh_slow` 真なら `CursorHold,BufWrite,InsertLeave`、偽なら `CursorHold,CursorHoldI,CursorMoved,CursorMovedI`。`autoload/mkdp/autocmd.vim:6-10`）。
 - `:MarkdownPreviewStop`（`mkdp#rpc#stop_server`）は `close_all_pages` request → 全 client へ `close_page` 配信（`app/server.js:128-138`）。REQ-020 の根拠。
 - 自動テスト・テストフレームワークは存在しない（package.json の scripts は watch/build-app/build-lib/build のみ）。

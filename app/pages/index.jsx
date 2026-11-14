@@ -81,6 +81,7 @@ export default class PreviewPage extends React.Component {
     this.preContent = ''
     this.timer = undefined
     this.bufnr = -1;
+    this.anchorScrollState = undefined
 
     this.state = {
       name: '',
@@ -90,11 +91,13 @@ export default class PreviewPage extends React.Component {
       theme: '',
       themeModeIsVisible: false,
       contentEditable: false,
-      disableFilename: 1
+      disableFilename: 1,
+      previewError: ''
     }
     this.showThemeButton = this.showThemeButton.bind(this)
     this.hideThemeButton = this.hideThemeButton.bind(this)
     this.handleThemeChange = this.handleThemeChange.bind(this)
+    this.handleLinkClick = this.handleLinkClick.bind(this)
   }
 
   handleThemeChange() {
@@ -111,6 +114,36 @@ export default class PreviewPage extends React.Component {
     this.setState({ themeModeIsVisible: false })
   }
 
+  handleLinkClick(event) {
+    const link = event.target.closest('a[href]')
+    if (!link || !event.currentTarget.contains(link)) {
+      return
+    }
+    const href = link.getAttribute('href')
+    if (!href || href[0] === '#' || href.startsWith('//') ||
+        /^[a-z][a-z\d+.-]*:/i.test(href) && !/^[a-z]:[\\/]/i.test(href)) {
+      return
+    }
+    let filename
+    try {
+      filename = decodeURIComponent(href.split('#')[0].split('?')[0])
+    } catch (err) {
+      event.preventDefault()
+      this.setState({ previewError: err.message })
+      return
+    }
+    if (!/\.(md|markdown)$/i.test(filename)) {
+      return
+    }
+    event.preventDefault()
+    this.setState({ previewError: '' })
+    if (!window.socket || !window.socket.connected) {
+      this.setState({ previewError: 'Preview server is not connected' })
+      return
+    }
+    window.socket.emit('open_link', href)
+  }
+
   startSocket(bufnr) {
     if (this.bufnr === bufnr) {
       return;
@@ -120,7 +153,8 @@ export default class PreviewPage extends React.Component {
     // Close the previous socket
     const tmpSocket = window.socket
 
-    window.history.replaceState(null, '', `/${bufnr}`)
+    const fragment = window.location.hash
+    window.history.replaceState(null, '', `/page/${bufnr}${fragment}`)
 
     const socket = io({
       query: {
@@ -141,6 +175,7 @@ export default class PreviewPage extends React.Component {
     socket.on('close_page', this.onClose.bind(this))
 
     socket.on('change_bufnr', this.onChangeBufnr.bind(this))
+    socket.on('preview_error', message => this.setState({ previewError: message }))
 
     if (tmpSocket) {
       tmpSocket.close()
@@ -148,7 +183,8 @@ export default class PreviewPage extends React.Component {
   }
 
   componentDidMount() {
-    this.startSocket(parseFloat(window.location.pathname.split('/')[2]))
+    this.initialAnchor = window.location.hash
+    this.startSocket(window.location.pathname.split('/').pop())
   }
 
   onConnect() {
@@ -165,7 +201,10 @@ export default class PreviewPage extends React.Component {
   }
 
   onChangeBufnr(bufnr) {
-    this.startSocket(bufnr)
+    this.initialAnchor = ''
+    this.anchorScrollState = undefined
+    window.history.replaceState(null, '', `/page/${bufnr}`)
+    this.startSocket(String(bufnr))
   }
 
   onRefreshContent({
@@ -256,6 +295,14 @@ export default class PreviewPage extends React.Component {
     this.preContent = newContent
 
     const refreshScroll = () => {
+      if (this.initialAnchor) {
+        return
+      }
+      const scrollState = JSON.stringify([cursor, winline, winheight])
+      if (this.anchorScrollState === scrollState) {
+        return
+      }
+      this.anchorScrollState = undefined
       if (isActive && !options.disable_sync_scroll) {
         scrollToLine[options.sync_scroll_type || 'middle']({
           cursor: cursor[1],
@@ -295,6 +342,15 @@ export default class PreviewPage extends React.Component {
           renderDiagram()
           renderFlowchart()
           renderDot()
+        }
+        if (this.initialAnchor) {
+          const anchor = document.getElementById(decodeURIComponent(this.initialAnchor.slice(1)))
+          this.initialAnchor = ''
+          if (anchor) {
+            this.anchorScrollState = JSON.stringify([cursor, winline, winheight])
+            anchor.scrollIntoView()
+            return
+          }
         }
         refreshScroll()
       })
@@ -352,6 +408,7 @@ export default class PreviewPage extends React.Component {
         </Head>
         <main data-theme={this.state.theme}>
           <div id="page-ctn" contentEditable={contentEditable ? 'true' : 'false'}>
+            {this.state.previewError && <p role="alert">{this.state.previewError}</p>}
             { disableFilename == 0 &&
               <header
                 id="page-header"
@@ -389,6 +446,7 @@ export default class PreviewPage extends React.Component {
             }
             <section
               className="markdown-body"
+              onClick={this.handleLinkClick}
               dangerouslySetInnerHTML={{
                 __html: content
               }}

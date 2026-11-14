@@ -1,0 +1,3 @@
+# 親ディレクトリの比較対象
+
+識別文字列: NESTED_FROM_LINK_PREVIEW_DIRECTORY
