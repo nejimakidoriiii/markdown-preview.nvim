@@ -11,6 +11,7 @@ function! s:on_stderr(chan_id, msgs, ...) abort
 endfunction
 function! s:on_exit(chan_id, code, ...) abort
   let s:mkdp_channel_id = s:is_vim ? v:null : -1
+  call mkdp#autocmd#clear_links()
 endfunction
 
 function! s:start_vim_server(cmd) abort
@@ -63,6 +64,7 @@ function! mkdp#rpc#start_server() abort
 endfunction
 
 function! mkdp#rpc#stop_server() abort
+  call mkdp#autocmd#clear_links()
   if s:is_vim
     if s:mkdp_channel_id !=# v:null
       let l:status = job_status(s:mkdp_channel_id)
@@ -123,14 +125,15 @@ function! mkdp#rpc#preview_close() abort
   call mkdp#autocmd#clear_buf()
 endfunction
 
-function! mkdp#rpc#open_browser() abort
+function! mkdp#rpc#open_browser(...) abort
+  let l:options = {'bufnr': bufnr('%'), 'automatic': get(a:, 1, 0)}
   if s:is_vim
     if s:mkdp_channel_id !=# v:null
-      call mkdp#rpc#notify(s:mkdp_channel_id, 'open_browser', { 'bufnr': bufnr('%') })
+      call mkdp#rpc#notify(s:mkdp_channel_id, 'open_browser', l:options)
     endif
   else
     if s:mkdp_channel_id !=# -1
-      call rpcnotify(s:mkdp_channel_id, 'open_browser', { 'bufnr': bufnr('%') })
+      call rpcnotify(s:mkdp_channel_id, 'open_browser', l:options)
     endif
   endif
 endfunction
