@@ -50,13 +50,13 @@ endfunction
 " auto refetch combine preview
 function! mkdp#util#combine_preview_refresh() abort
   if g:mkdp_clients_active && !g:mkdp_auto_start
-    call mkdp#util#open_browser()
+    call mkdp#util#open_browser(1)
   endif
 endfunction
 
 " open browser
-function! mkdp#util#open_browser() abort
-  call mkdp#rpc#open_browser()
+function! mkdp#util#open_browser(...) abort
+  call mkdp#rpc#open_browser(get(a:, 1, 0))
   call mkdp#autocmd#init()
 endfunction
 
@@ -193,4 +193,3 @@ function! mkdp#util#toggle_preview() abort
         let b:MarkdownPreviewToggleBool=0
     endif
 endfunction
-

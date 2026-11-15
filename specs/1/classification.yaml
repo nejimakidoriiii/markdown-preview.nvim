@@ -22,7 +22,7 @@ REQ-003:
   quint: true     # clickLink は windowCount を +1 する（既存ウィンドウを再利用しない）
   alloy: true     # 同一ファイルに複数の LinkWindow が共存できる構造（run で SAT を確認）
 REQ-004:
-  text: リンククリックによる開封は g:mkdp_combine_preview の影響を受けず常に独立した新規ウィンドウ。combine は :MarkdownPreview の明示開始にのみ適用。
+  text: リンククリックによる開封は g:mkdp_combine_preview の影響を受けず常に独立した新規ウィンドウ。明示開始の combine は従来どおり保持。combine=1、combine_preview_auto_refresh=1、auto_start=0 のバッファ移動では通常画面の既存自動切り替えを維持し、独立画面だけを対象外とする。独立画面自身の既存ライブ更新は維持する。旧「明示開始にのみ」の適用条件訂正は requirements.md の承認履歴（質問 a4f51a1f-ddd7-42ac-95d4-1e94779574e8、2026-11-14T21:44:19.388Z）を参照。
   gherkin: true   # combine=1 でもリンククリックで新規ウィンドウが開くことが観察できる
   quint: true     # clickLink は combine を参照しない（combine を参照する openByCommandReplace との対比で表現）
   alloy: false    # 設定値と遷移の関係であり構造制約ではない

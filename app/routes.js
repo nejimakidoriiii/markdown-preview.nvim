@@ -10,7 +10,8 @@ const use = function (route) {
 
 // /page/:number
 use((req, res, next) => {
-  if (/\/page\/\d+/.test(req.asPath)) {
+  if (/^\/page\/\d+$/.test(req.asPath) ||
+      /^\/page\/link-\d+$/.test(req.asPath) && req.previewFile) {
     return fs.createReadStream('./out/index.html').pipe(res)
   }
   next()
@@ -64,10 +65,12 @@ use(async (req, res, next) => {
     const plugin = req.plugin
     const buffers = await plugin.nvim.buffers
     const buffer = buffers.find(b => b.id === Number(req.bufnr))
-    if (buffer) {
+    if (buffer || req.previewFile) {
       let fileDir = ''
       if (req.custImgPath !== '' ){
         fileDir = req.custImgPath
+      } else if (req.previewFile) {
+        fileDir = path.dirname(req.previewFile)
       } else {
         fileDir = await plugin.nvim.call('expand', `#${req.bufnr}:p:h`)
       }
